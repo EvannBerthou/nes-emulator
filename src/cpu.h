@@ -6,6 +6,8 @@
 typedef struct {
     uint8_t register_a;
     uint8_t register_x;
+    uint8_t register_y;
+    uint8_t sp;
     union {
         struct {
             uint8_t carry : 1;
@@ -24,6 +26,7 @@ typedef struct {
 } cpu;
 
 typedef enum {
+    MODE_ACCUMULATOR,
     MODE_IMMEDIATE,
     MODE_ZERO_PAGE,
     MODE_ZERO_PAGE_X,
@@ -33,6 +36,9 @@ typedef enum {
     MODE_ABSOLUTE_Y,
     MODE_INDIRECT_X,
     MODE_INDIRECT_Y,
+    MODE_RELATIVE,
+    MODE_IMPLIED,
+    MODE_INDIRECT,
     MODE_NONE
 } addressing_mode;
 
@@ -50,8 +56,11 @@ typedef enum {
 void init_cpu(cpu *cpu);
 uint8_t read_instruction(cpu *cpu);
 uint16_t get_operand_addr(cpu *cpu, addressing_mode mode);
+void stack_push(cpu *cpu, uint8_t value);
+uint8_t stack_pop(cpu *cpu);
 
 void set_carry_flag_value(cpu *cpu, uint8_t value);
+void set_zero_flag_value(cpu *cpu, uint8_t value);
 void set_overflow_flag_value(cpu *cpu, uint8_t value);
 void set_negative_flag_value(cpu *cpu, uint8_t value);
 
