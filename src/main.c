@@ -1,22 +1,22 @@
-#include "cpu.h"
-#include "opcodes.h"
 #include <stdio.h>
-#include <stdlib.h>
+#include "cpu.h"
+#include "ines.h"
+#include "nes.h"
+#include "opcodes.h"
 
 int main() {
     cpu c;
     init_cpu(&c);
-    c.memory[0] = 0x69;
-    c.memory[1] = 0xFF;
-    c.memory[2] = 0x69;
-    c.memory[3] = 0x0F;
+
+    cartridge cart;
+    load_rom(&cart, "zelda.nes");
+
+    NES nes = {&c, &cart};
+    reset_nes(&nes);
 
     while (1) {
-        uint8_t code = read_instruction(&c);
-        if (code == 0) exit(1);
-
-        exec_opcode(&c, code);
-        printf("%d %d\n", c.negative, c.register_a);
+        uint8_t code = read_instruction(&nes);
+        exec_opcode(&nes, code);
     }
 
     return 0;

@@ -2,13 +2,14 @@
 #define OPCODES_H
 
 #include "cpu.h"
+#include "nes.h"
 
 typedef struct {
     const char *mnemonic;
     addressing_mode mode;
-    void (*fct)(cpu*, addressing_mode);
+    void (*fct)(NES*, addressing_mode);
 } opcode;
 
-void exec_opcode(cpu *cpu, uint8_t code);
+void exec_opcode(NES *nes, uint8_t code);
 
 #endif

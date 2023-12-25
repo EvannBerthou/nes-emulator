@@ -1,516 +1,509 @@
 #include "opcodes.h"
+#include "nes.h"
+#include "utils.h"
 #include <stdio.h>
+#include <string.h>
 
-#define SET_CARRY(v) set_carry_flag_value(cpu, !!((v)&0x80))
+#define SET_CARRY(v) set_carry_flag_value(nes->cpu, !!((v) & 0x80))
 
-#define SET_ZERO(v) set_zero_flag_value(cpu, (v) == 0)
+#define SET_ZERO(v) set_zero_flag_value(nes->cpu, (v) == 0)
 
 // Verifie si les signes sont les mêmes
 #define SET_OVERFLOW(v)                                                        \
     set_overflow_flag_value(                                                   \
-        cpu, ((operand ^ (v)) & ((v) ^ cpu->register_a) & 0x80))
+        nes->cpu, ((operand ^ (v)) & ((v) ^ nes->cpu->register_a) & 0x80))
 
-#define SET_NEGATIVE(v) set_negative_flag_value(cpu, (v >> 7) & 1)
+#define SET_NEGATIVE(v) set_negative_flag_value(nes->cpu, (v >> 7) & 1)
 
 /*
  * OPCODES IMPLEMENTATION
  */
 
-static void adc(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t operand = cpu->memory[operand_addr];
-    uint8_t carry_flag = cpu->status & FLAG_CARRY;
-    uint8_t result = (cpu->register_a + operand + carry_flag) & 0xFF;
+static void adc(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t operand = nes->cpu->memory[operand_addr];
+    uint8_t carry_flag = nes->cpu->status & FLAG_CARRY;
+    uint8_t result = (nes->cpu->register_a + operand + carry_flag) & 0xFF;
 
     SET_CARRY(result);
     SET_OVERFLOW(result);
     SET_NEGATIVE(result);
 
-    cpu->register_a = result;
+    nes->cpu->register_a = result;
 }
 
-static void and (cpu * cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t operand = cpu->memory[operand_addr];
-    uint8_t result = cpu->register_a & operand;
+static void and (NES * nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t operand = nes->cpu->memory[operand_addr];
+    uint8_t result = nes->cpu->register_a & operand;
 
     SET_ZERO(result);
     SET_NEGATIVE(result);
 
-    cpu->register_a = result;
+    nes->cpu->register_a = result;
 }
 
-static void asl_acc(cpu *cpu, addressing_mode mode) {
+static void asl_acc(NES *nes, addressing_mode mode) {
     (void)mode;
-    uint8_t result = cpu->register_a << 1;
+    uint8_t result = nes->cpu->register_a << 1;
 
-    SET_CARRY(cpu->register_a);
+    SET_CARRY(nes->cpu->register_a);
     SET_ZERO(result);
     SET_NEGATIVE(result);
 
-    cpu->register_a = result;
+    nes->cpu->register_a = result;
 }
 
-static void asl(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t result = cpu->memory[operand_addr] << 1;
+static void asl(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t result = nes->cpu->memory[operand_addr] << 1;
 
-    SET_CARRY(cpu->register_a);
+    SET_CARRY(nes->cpu->register_a);
     SET_ZERO(result);
     SET_NEGATIVE(result);
 
-    cpu->memory[operand_addr] = result;
+    nes->cpu->memory[operand_addr] = result;
 }
 
-static void bcc(cpu *cpu, addressing_mode mode) {
+static void bcc(NES *nes, addressing_mode mode) {
     (void)mode;
-    if (cpu->carry == 0) {
-        uint8_t addr = cpu->memory[cpu->pc++];
-        cpu->pc += addr;
+    if (nes->cpu->carry == 0) {
+        nes->cpu->pc = get_operand_addr(nes, mode);
     }
 }
 
-static void bcs(cpu *cpu, addressing_mode mode) {
+static void bcs(NES *nes, addressing_mode mode) {
     (void)mode;
-    if (cpu->carry == 1) {
-        uint8_t addr = cpu->memory[cpu->pc++];
-        cpu->pc += addr;
+    if (nes->cpu->carry == 1) {
+        nes->cpu->pc = get_operand_addr(nes, mode);
     }
 }
 
-static void beq(cpu *cpu, addressing_mode mode) {
+static void beq(NES *nes, addressing_mode mode) {
     (void)mode;
-    if (cpu->zero == 1) {
-        uint8_t addr = cpu->memory[cpu->pc++];
-        cpu->pc += addr;
+    if (nes->cpu->zero == 1) {
+        nes->cpu->pc = get_operand_addr(nes, mode);
     }
 }
 
-static void bit(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t operand = cpu->memory[operand_addr];
+static void bit(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t operand = nes->cpu->memory[operand_addr];
 
-    SET_ZERO(cpu->register_a & operand);
-    cpu->overflow = (operand >> 6) & 1;
+    SET_ZERO(nes->cpu->register_a & operand);
+    nes->cpu->overflow = (operand >> 6) & 1;
     SET_NEGATIVE(operand);
 }
 
-static void bmi(cpu *cpu, addressing_mode mode) {
+static void bmi(NES *nes, addressing_mode mode) {
     (void)mode;
-    if (cpu->negative == 1) {
-        uint8_t addr = cpu->memory[cpu->pc++];
-        cpu->pc += addr;
+    if (nes->cpu->negative == 1) {
+        nes->cpu->pc = get_operand_addr(nes, mode);
     }
 }
 
-static void bne(cpu *cpu, addressing_mode mode) {
+static void bne(NES *nes, addressing_mode mode) {
     (void)mode;
-    if (cpu->zero == 0) {
-        uint8_t addr = cpu->memory[cpu->pc++];
-        cpu->pc += addr;
+    if (nes->cpu->zero == 0) {
+        nes->cpu->pc = get_operand_addr(nes, mode);
     }
 }
 
-static void bpl(cpu *cpu, addressing_mode mode) {
+static void bpl(NES *nes, addressing_mode mode) {
     (void)mode;
-    if (cpu->negative == 0) {
-        uint8_t addr = cpu->memory[cpu->pc++];
-        cpu->pc += addr;
+    if (nes->cpu->negative == 0) {
+        nes->cpu->pc = get_operand_addr(nes, mode);
     }
 }
 
-static void brk(cpu *cpu, addressing_mode mode) {
+static void brk(NES *nes, addressing_mode mode) {
     // TODO: Implémenter
-    (void)cpu;
+    (void)nes;
     (void)mode;
 }
 
-static void bvc(cpu *cpu, addressing_mode mode) {
-    (void)mode;
-    if (cpu->overflow == 0) {
-        uint8_t addr = cpu->memory[cpu->pc++];
-        cpu->pc += addr;
+static void bvc(NES *nes, addressing_mode mode) {
+    if (nes->cpu->overflow == 0) {
+        nes->cpu->pc = get_operand_addr(nes, mode);
     }
 }
 
-static void bvs(cpu *cpu, addressing_mode mode) {
-    (void)mode;
-    if (cpu->overflow == 1) {
-        uint8_t addr = cpu->memory[cpu->pc++];
-        cpu->pc += addr;
+static void bvs(NES *nes, addressing_mode mode) {
+    if (nes->cpu->overflow == 1) {
+        nes->cpu->pc = get_operand_addr(nes, mode);
     }
 }
 
-static void clc(cpu *cpu, addressing_mode mode) {
+static void clc(NES *nes, addressing_mode mode) {
     (void)mode;
-    cpu->carry = 0;
+    nes->cpu->carry = 0;
 }
 
-static void cld(cpu *cpu, addressing_mode mode) {
+static void cld(NES *nes, addressing_mode mode) {
     (void)mode;
-    cpu->decimal_mode = 0;
+    nes->cpu->decimal_mode = 0;
 }
 
-static void cli(cpu *cpu, addressing_mode mode) {
+static void cli(NES *nes, addressing_mode mode) {
     (void)mode;
-    cpu->interupt_disable = 0;
+    nes->cpu->interupt_disable = 0;
 }
 
-static void clv(cpu *cpu, addressing_mode mode) {
+static void clv(NES *nes, addressing_mode mode) {
     (void)mode;
-    cpu->overflow = 0;
+    nes->cpu->overflow = 0;
 }
 
-static void cmp(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t operand = cpu->memory[operand_addr];
-    uint8_t result = cpu->register_a - operand;
+static void cmp(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t operand = nes->cpu->memory[operand_addr];
+    uint8_t result = nes->cpu->register_a - operand;
 
-    cpu->carry = cpu->register_a >= operand;
+    nes->cpu->carry = nes->cpu->register_a >= operand;
     SET_ZERO(result);
     SET_NEGATIVE(result);
 }
 
-static void cpx(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t operand = cpu->memory[operand_addr];
-    uint8_t result = cpu->register_x - operand;
+static void cpx(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t operand = nes->cpu->memory[operand_addr];
+    uint8_t result = nes->cpu->register_x - operand;
 
-    cpu->carry = cpu->register_x >= operand;
+    nes->cpu->carry = nes->cpu->register_x >= operand;
     SET_ZERO(result);
     SET_NEGATIVE(result);
 }
 
-static void cpy(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t operand = cpu->memory[operand_addr];
-    uint8_t result = cpu->register_y - operand;
+static void cpy(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t operand = nes->cpu->memory[operand_addr];
+    uint8_t result = nes->cpu->register_y - operand;
 
-    cpu->carry = cpu->register_y >= operand;
+    nes->cpu->carry = nes->cpu->register_y >= operand;
     SET_ZERO(result);
     SET_NEGATIVE(result);
 }
 
-static void dec(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t result = cpu->memory[operand_addr] - 1;
+static void dec(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t result = nes->cpu->memory[operand_addr] - 1;
 
     SET_ZERO(result);
     SET_NEGATIVE(result);
 
-    cpu->memory[operand_addr] = result;
+    nes->cpu->memory[operand_addr] = result;
 }
 
-static void dex(cpu *cpu, addressing_mode mode) {
+static void dex(NES *nes, addressing_mode mode) {
     (void)mode;
-    cpu->register_x--;
-    SET_ZERO(cpu->register_x);
-    SET_NEGATIVE(cpu->register_x);
+    nes->cpu->register_x--;
+    SET_ZERO(nes->cpu->register_x);
+    SET_NEGATIVE(nes->cpu->register_x);
 }
 
-static void dey(cpu *cpu, addressing_mode mode) {
+static void dey(NES *nes, addressing_mode mode) {
     (void)mode;
-    cpu->register_y--;
-    SET_ZERO(cpu->register_y);
-    SET_NEGATIVE(cpu->register_y);
+    nes->cpu->register_y--;
+    SET_ZERO(nes->cpu->register_y);
+    SET_NEGATIVE(nes->cpu->register_y);
 }
 
-static void eor(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t operand = cpu->memory[operand_addr];
-    uint8_t result = cpu->register_a ^ operand;
+static void eor(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t operand = nes->cpu->memory[operand_addr];
+    uint8_t result = nes->cpu->register_a ^ operand;
 
     SET_ZERO(result);
     SET_NEGATIVE(result);
 
-    cpu->register_a = result;
+    nes->cpu->register_a = result;
 }
 
-static void inc(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t result = cpu->memory[operand_addr] + 1;
+static void inc(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t result = nes->cpu->memory[operand_addr] + 1;
 
     SET_ZERO(result);
     SET_NEGATIVE(result);
 
-    cpu->memory[operand_addr] = result;
+    nes->cpu->memory[operand_addr] = result;
 }
 
-static void inx(cpu *cpu, addressing_mode mode) {
+static void inx(NES *nes, addressing_mode mode) {
     (void)mode;
-    cpu->register_x++;
-    SET_ZERO(cpu->register_x);
-    SET_NEGATIVE(cpu->register_x);
+    nes->cpu->register_x++;
+    SET_ZERO(nes->cpu->register_x);
+    SET_NEGATIVE(nes->cpu->register_x);
 }
 
-static void iny(cpu *cpu, addressing_mode mode) {
+static void iny(NES *nes, addressing_mode mode) {
     (void)mode;
-    cpu->register_y++;
-    SET_ZERO(cpu->register_y);
-    SET_NEGATIVE(cpu->register_y);
+    nes->cpu->register_y++;
+    SET_ZERO(nes->cpu->register_y);
+    SET_NEGATIVE(nes->cpu->register_y);
 }
 
-static void jmp(cpu *cpu, addressing_mode mode) {
-    uint8_t low = cpu->memory[cpu->pc++];
-    uint8_t high = cpu->memory[cpu->pc++];
+static void jmp(NES *nes, addressing_mode mode) {
+    uint8_t low = nes->cpu->memory[nes->cpu->pc++];
+    uint8_t high = nes->cpu->memory[nes->cpu->pc++];
     uint16_t addr = (high << 8) | low;
     if (mode == MODE_ABSOLUTE) {
-        cpu->pc = addr;
+        nes->cpu->pc = addr;
     } else if (mode == MODE_INDIRECT) {
         // TODO: Prendre en compte le bug
-        cpu->pc = cpu->memory[addr];
+        nes->cpu->pc = nes->cpu->memory[addr];
     }
 }
 
-static void jsr(cpu *cpu, addressing_mode mode) {
+static void jsr(NES *nes, addressing_mode mode) {
     (void)mode;
-    uint8_t low = cpu->memory[cpu->pc++];
-    uint8_t high = cpu->memory[cpu->pc++];
+    uint8_t low = nes->cpu->memory[nes->cpu->pc++];
+    uint8_t high = nes->cpu->memory[nes->cpu->pc++];
     uint16_t addr = (high << 8) | low;
-    stack_push(cpu, cpu->pc - 1);
-    cpu->pc = addr;
+    stack_push(nes->cpu, nes->cpu->pc - 1);
+    nes->cpu->pc = addr;
 }
 
-static void lda(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t operand = cpu->memory[operand_addr];
+static void lda(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t operand = nes->cpu->memory[operand_addr];
 
     SET_ZERO(operand);
     SET_NEGATIVE(operand);
 
-    cpu->register_a = operand;
+    nes->cpu->register_a = operand;
 }
 
-static void ldx(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t operand = cpu->memory[operand_addr];
+static void ldx(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t operand = nes->cpu->memory[operand_addr];
 
     SET_ZERO(operand);
     SET_NEGATIVE(operand);
 
-    cpu->register_x = operand;
+    nes->cpu->register_x = operand;
 }
 
-static void ldy(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t operand = cpu->memory[operand_addr];
+static void ldy(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t operand = nes->cpu->memory[operand_addr];
 
     SET_ZERO(operand);
     SET_NEGATIVE(operand);
 
-    cpu->register_y = operand;
+    nes->cpu->register_y = operand;
 }
 
-static void lsr_acc(cpu *cpu, addressing_mode mode) {
+static void lsr_acc(NES *nes, addressing_mode mode) {
     (void)mode;
-    uint8_t result = cpu->register_a >> 1;
+    uint8_t result = nes->cpu->register_a >> 1;
 
-    SET_CARRY(cpu->register_a & 1);
+    SET_CARRY(nes->cpu->register_a & 1);
     SET_ZERO(result);
     SET_NEGATIVE(result);
 
-    cpu->register_a = result;
+    nes->cpu->register_a = result;
 }
 
-static void lsr(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t result = cpu->memory[operand_addr] >> 1;
+static void lsr(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t result = nes->cpu->memory[operand_addr] >> 1;
 
-    SET_CARRY(cpu->memory[operand_addr] & 1);
+    SET_CARRY(nes->cpu->memory[operand_addr] & 1);
     SET_ZERO(result);
     SET_NEGATIVE(result);
 
-    cpu->memory[operand_addr] = result;
+    nes->cpu->memory[operand_addr] = result;
 }
 
-static void nop(cpu *cpu, addressing_mode mode) {
-    (void)cpu;
+static void nop(NES *nes, addressing_mode mode) {
+    (void)nes;
     (void)mode;
 }
 
-static void ora(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t operand = cpu->memory[operand_addr];
-    uint8_t result = cpu->register_a | operand;
+static void ora(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t operand = nes->cpu->memory[operand_addr];
+    uint8_t result = nes->cpu->register_a | operand;
 
     SET_ZERO(result);
     SET_NEGATIVE(result);
 
-    cpu->register_a = result;
+    nes->cpu->register_a = result;
 }
 
-static void pha(cpu *cpu, addressing_mode mode) {
+static void pha(NES *nes, addressing_mode mode) {
     (void)mode;
-    stack_push(cpu, cpu->register_a);
+    stack_push(nes->cpu, nes->cpu->register_a);
 }
 
-static void php(cpu *cpu, addressing_mode mode) {
+static void php(NES *nes, addressing_mode mode) {
     (void)mode;
-    stack_push(cpu, cpu->status);
+    stack_push(nes->cpu, nes->cpu->status);
 }
 
-static void pla(cpu *cpu, addressing_mode mode) {
+static void pla(NES *nes, addressing_mode mode) {
     (void)mode;
-    uint8_t stack_value = stack_pop(cpu);
+    uint8_t stack_value = stack_pop(nes->cpu);
     SET_ZERO(stack_value);
     SET_NEGATIVE(stack_value);
-    cpu->register_a = stack_value;
+    nes->cpu->register_a = stack_value;
 }
 
-static void plp(cpu *cpu, addressing_mode mode) {
+static void plp(NES *nes, addressing_mode mode) {
     (void)mode;
-    uint8_t stack_value = stack_pop(cpu);
+    uint8_t stack_value = stack_pop(nes->cpu);
     SET_ZERO(stack_value);
     SET_NEGATIVE(stack_value);
-    cpu->status = stack_value;
+    nes->cpu->status = stack_value;
 }
 
-static void rol_acc(cpu *cpu, addressing_mode mode) {
+static void rol_acc(NES *nes, addressing_mode mode) {
     (void)mode;
-    uint8_t result = cpu->register_a << 1;
-    result |= cpu->carry;
+    uint8_t result = nes->cpu->register_a << 1;
+    result |= nes->cpu->carry;
 
-    SET_CARRY((cpu->register_a >> 7) & 1);
+    SET_CARRY((nes->cpu->register_a >> 7) & 1);
     SET_ZERO(result);
     SET_NEGATIVE(result);
 
-    cpu->register_a = result;
+    nes->cpu->register_a = result;
 }
 
-static void rol(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t result = cpu->memory[operand_addr] << 1;
-    result |= cpu->carry;
+static void rol(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t result = nes->cpu->memory[operand_addr] << 1;
+    result |= nes->cpu->carry;
 
-    SET_CARRY((cpu->memory[operand_addr] >> 7) & 1);
+    SET_CARRY((nes->cpu->memory[operand_addr] >> 7) & 1);
     SET_ZERO(result);
     SET_NEGATIVE(result);
 
-    cpu->memory[operand_addr] = result;
+    nes->cpu->memory[operand_addr] = result;
 }
 
-static void ror_acc(cpu *cpu, addressing_mode mode) {
+static void ror_acc(NES *nes, addressing_mode mode) {
     (void)mode;
-    uint8_t result = cpu->register_a >> 1;
-    result |= (cpu->carry << 7);
+    uint8_t result = nes->cpu->register_a >> 1;
+    result |= (nes->cpu->carry << 7);
 
-    SET_CARRY(cpu->register_a & 1);
+    SET_CARRY(nes->cpu->register_a & 1);
     SET_ZERO(result);
     SET_NEGATIVE(result);
 
-    cpu->register_a = result;
+    nes->cpu->register_a = result;
 }
 
-static void ror(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t result = cpu->memory[operand_addr] >> 1;
-    result |= (cpu->carry << 7);
+static void ror(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t result = nes->cpu->memory[operand_addr] >> 1;
+    result |= (nes->cpu->carry << 7);
 
-    SET_CARRY(cpu->memory[operand_addr] & 1);
+    SET_CARRY(nes->cpu->memory[operand_addr] & 1);
     SET_ZERO(result);
     SET_NEGATIVE(result);
 
-    cpu->memory[operand_addr] = result;
+    nes->cpu->memory[operand_addr] = result;
 }
 
-static void rti(cpu *cpu, addressing_mode mode) {
+static void rti(NES *nes, addressing_mode mode) {
     (void)mode;
-    uint8_t status = stack_pop(cpu);
-    uint8_t pc = stack_pop(cpu);
-    cpu->status = status;
-    cpu->pc = pc;
+    uint8_t status = stack_pop(nes->cpu);
+    uint8_t pc = stack_pop(nes->cpu);
+    nes->cpu->status = status;
+    nes->cpu->pc = pc;
 }
 
-static void rts(cpu *cpu, addressing_mode mode) {
+static void rts(NES *nes, addressing_mode mode) {
     (void)mode;
-    uint8_t pc = stack_pop(cpu);
-    cpu->pc = pc;
+    uint8_t pc = stack_pop(nes->cpu);
+    nes->cpu->pc = pc;
 }
 
-static void sbc(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    uint8_t operand = cpu->memory[operand_addr];
-    uint8_t carry_flag = 1 - cpu->carry;
-    uint8_t result = (cpu->register_a - operand + carry_flag) & 0xFF;
+static void sbc(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    uint8_t operand = nes->cpu->memory[operand_addr];
+    uint8_t carry_flag = 1 - nes->cpu->carry;
+    uint8_t result = (nes->cpu->register_a - operand + carry_flag) & 0xFF;
 
     SET_CARRY(result);
     SET_OVERFLOW(result);
     SET_NEGATIVE(result);
 
-    cpu->register_a = result;
+    nes->cpu->register_a = result;
 }
 
-static void sec(cpu *cpu, addressing_mode mode) {
+static void sec(NES *nes, addressing_mode mode) {
     (void)mode;
-    cpu->carry = 1;
+    nes->cpu->carry = 1;
 }
 
-static void sed(cpu *cpu, addressing_mode mode) {
+static void sed(NES *nes, addressing_mode mode) {
     (void)mode;
-    cpu->decimal_mode = 1;
+    nes->cpu->decimal_mode = 1;
 }
 
-static void sei(cpu *cpu, addressing_mode mode) {
+static void sei(NES *nes, addressing_mode mode) {
     (void)mode;
-    cpu->interupt_disable = 1;
+    nes->cpu->interupt_disable = 1;
 }
 
-static void sta(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    cpu->memory[operand_addr] = cpu->register_a;
+static void sta(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    nes->cpu->memory[operand_addr] = nes->cpu->register_a;
 }
 
-static void stx(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    cpu->memory[operand_addr] = cpu->register_x;
+static void stx(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    nes->cpu->memory[operand_addr] = nes->cpu->register_x;
 }
 
-static void sty(cpu *cpu, addressing_mode mode) {
-    uint16_t operand_addr = get_operand_addr(cpu, mode);
-    cpu->memory[operand_addr] = cpu->register_y;
+static void sty(NES *nes, addressing_mode mode) {
+    uint16_t operand_addr = get_operand_addr(nes, mode);
+    nes->cpu->memory[operand_addr] = nes->cpu->register_y;
 }
 
-static void tax(cpu *cpu, addressing_mode mode) {
+static void tax(NES *nes, addressing_mode mode) {
     (void)mode;
-    cpu->register_x = cpu->register_a;
-    SET_ZERO(cpu->register_x);
-    SET_NEGATIVE(cpu->register_x);
+    nes->cpu->register_x = nes->cpu->register_a;
+    SET_ZERO(nes->cpu->register_x);
+    SET_NEGATIVE(nes->cpu->register_x);
 }
 
-static void tay(cpu *cpu, addressing_mode mode) {
+static void tay(NES *nes, addressing_mode mode) {
     (void)mode;
-    cpu->register_y = cpu->register_a;
-    SET_ZERO(cpu->register_y);
-    SET_NEGATIVE(cpu->register_y);
+    nes->cpu->register_y = nes->cpu->register_a;
+    SET_ZERO(nes->cpu->register_y);
+    SET_NEGATIVE(nes->cpu->register_y);
 }
 
-static void tsx(cpu *cpu, addressing_mode mode) {
+static void tsx(NES *nes, addressing_mode mode) {
     (void)mode;
-    uint8_t stack_value = stack_pop(cpu);
+    uint8_t stack_value = stack_pop(nes->cpu);
 
     SET_ZERO(stack_value);
     SET_NEGATIVE(stack_value);
 
-    cpu->register_x = stack_value;
+    nes->cpu->register_x = stack_value;
 }
 
-static void txa(cpu *cpu, addressing_mode mode) {
+static void txa(NES *nes, addressing_mode mode) {
     (void)mode;
-    cpu->register_a = cpu->register_x;
-    SET_ZERO(cpu->register_a);
-    SET_NEGATIVE(cpu->register_a);
+    nes->cpu->register_a = nes->cpu->register_x;
+    SET_ZERO(nes->cpu->register_a);
+    SET_NEGATIVE(nes->cpu->register_a);
 }
 
-static void txs(cpu *cpu, addressing_mode mode) {
+static void txs(NES *nes, addressing_mode mode) {
     (void)mode;
-    stack_push(cpu, cpu->register_x);
+    stack_push(nes->cpu, nes->cpu->register_x);
 }
 
-static void tya(cpu *cpu, addressing_mode mode) {
+static void tya(NES *nes, addressing_mode mode) {
     (void)mode;
-    cpu->register_a = cpu->register_y;
-    SET_ZERO(cpu->register_a);
-    SET_NEGATIVE(cpu->register_a);
+    nes->cpu->register_a = nes->cpu->register_y;
+    SET_ZERO(nes->cpu->register_a);
+    SET_NEGATIVE(nes->cpu->register_a);
 }
 
 /*
@@ -518,6 +511,7 @@ static void tya(cpu *cpu, addressing_mode mode) {
  */
 
 opcode opcodes[256] = {
+    {"NULL", MODE_IMPLIED, NULL},
     [0x69] = {"ADC", MODE_IMMEDIATE, &adc},
     [0x65] = {"ADC", MODE_ZERO_PAGE, &adc},
     [0x75] = {"ADC", MODE_ZERO_PAGE_X, &adc},
@@ -703,7 +697,16 @@ opcode opcodes[256] = {
     [0x98] = {"TYA", MODE_IMPLIED, &tya},
 };
 
-void exec_opcode(cpu *cpu, uint8_t code) {
+void exec_opcode(NES *nes, uint8_t code) {
     opcode *op = &opcodes[code];
-    op->fct(cpu, op->mode);
+    if (op->mnemonic == NULL) {
+        PANIC("Invalid opcode %x\n", code);
+    }
+    //TODO: ??
+    if (strcmp(op->mnemonic, "JSR") != 0 && strcmp(op->mnemonic, "JMP") != 0) {
+        nes->cpu->pc++;
+    } else {
+        printf("JUMP\n");
+    }
+    op->fct(nes, op->mode);
 }

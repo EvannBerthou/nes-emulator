@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#define RESET_VECTOR 0xFFFC
+
 typedef struct {
     uint8_t register_a;
     uint8_t register_x;
@@ -54,8 +56,6 @@ typedef enum {
 } flags;
 
 void init_cpu(cpu *cpu);
-uint8_t read_instruction(cpu *cpu);
-uint16_t get_operand_addr(cpu *cpu, addressing_mode mode);
 void stack_push(cpu *cpu, uint8_t value);
 uint8_t stack_pop(cpu *cpu);
 
