@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+
 void load_rom(cartridge *cart, const char *rom_path) {
     FILE *file = fopen(rom_path, "r");
     ASSERT(file);
@@ -25,11 +26,14 @@ void load_rom(cartridge *cart, const char *rom_path) {
 
     ASSERT(!fseek(file, 4, SEEK_CUR));
 
-    // TODO: Calculer le mapper
+    cart->mapper = ((cart->header.flag6 & 0xF0) >> 4) | ((cart->header.flag7 & 0xF0) << 4);
 
     // TODO: Prendre en compte trainer
-    //uint8_t trainer;
-    //ASSERT(fread(&trainer, sizeof(uint8_t), 1, file));
+    uint8_t trainer = cart->header.flag6 & (1 << 2);
+    if (trainer) {
+        //TODO: Pour l'instant juste skip, après il faudrait le lire
+        ASSERT(!fseek(file, 512, SEEK_CUR));
+    }
 
     cart->prg_data = malloc(0x4000 * cart->header.prg_size);
     ASSERT(cart->prg_data);
@@ -43,7 +47,7 @@ void load_rom(cartridge *cart, const char *rom_path) {
         cart->chr_data = NULL;
     }
 
-    // TODO: Lire inst_rom et prom
+    // TODO: Lire inst_rom et prom, Mirroring, battery, et autres flags
 
     printf("ROM chargée !\n");
 

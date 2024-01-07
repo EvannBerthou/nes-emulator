@@ -7,7 +7,7 @@ typedef struct {
     char NES[3]; // "NES" Header
     uint8_t prg_size; //16KB units
     uint8_t chr_size; //8KB units TODO: Peut être 0 => cas spécial
-    uint8_t flag6; //TODO: Comprendre
+    uint8_t flag6;
     uint8_t flag7;
     uint8_t flag8;
     uint8_t flag9;
@@ -22,6 +22,8 @@ typedef struct {
     uint8_t *chr_data;
     uint8_t *inst_rom;
     uint8_t *prom; //Often missing
+
+    uint8_t mapper;
 } cartridge;
 
 void load_rom(cartridge *cart, const char *rom_path);

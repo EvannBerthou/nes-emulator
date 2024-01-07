@@ -1,3 +1,3 @@
 #!/bin/sh
 
-gcc -Wall -Werror $(find src -name *.c) -o build -g
+gcc -Wall -Werror -Wunused-variable -Wunused-parameter $(find src -name *.c) -o build -g

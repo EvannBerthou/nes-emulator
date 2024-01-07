@@ -4,24 +4,43 @@
 uint8_t read_instruction(NES *nes) { return mem_read(nes, nes->cpu->pc); }
 
 uint8_t mem_read(NES *nes, uint16_t addr) {
-    if (addr < 0x4000) {
-        return nes->cpu->memory[addr];
+    //Interval RAM (mirrored 0x0800 - 0x1FFF)
+    if (addr <= 0x1FFF) {
+        return nes->cpu->memory[addr & 0x7FF];
     }
 
-    // TODO: Mapper
-    if (addr < 0xC000)
-        return nes->cart->prg_data[addr & 0x3fff];
-    else {
-        uint8_t *bank2 =
-            nes->cart->prg_data + (nes->cart->header.prg_size - 1) * 0x4000;
-        return bank2[addr & 0x3fff];
+    //TODO: PPU registers (mirrored 0x2008 - 0x3FFF)
+    if (addr <= 0x3FFF) {
+        PANIC("PPU NOT IMPLEMENTED (%x)\n", addr & 0x2007);
     }
 
-    PANIC("Addresse invalide %x\n", addr);
-    return 0;
+    //TODO: APU and IO (0x4000 - 0x4017)
+    if (addr <= 0x4017) {
+        PANIC("NES APU and IO registers NOT IMPLEMENTED (%x)\n", addr);
+    }
+
+    //TODO: Disabled (0x4018 - 0x401F)
+    if (addr <= 0x401F) {
+        PANIC("SHOULD BE DISABLED (%x)\n", addr);
+    }
+
+    //TODO: Cartridge
+    if (addr >= 0x8000) {
+        return nes->mapper->read_prg(nes->cart, addr);
+    }
+
+    PANIC("Addresse lecture invalide %x\n", addr);
 }
 
-// TODO: Bug ici
+void mem_write(NES *nes, uint16_t addr, uint8_t val) {
+    printf("Writing at %x (%x)\n", addr, val);
+    if (addr <= 0x1FFF) {
+        nes->cpu->memory[addr & 0x7FF] = val;
+    }
+
+    PANIC("Addresse ecriture invalide %x\n", addr);
+}
+
 uint16_t mem_read_u16(NES *nes, uint16_t addr) {
     return mem_read(nes, addr) | mem_read(nes, addr + 1) << 8;
 }
@@ -68,6 +87,4 @@ uint16_t get_operand_addr(NES *nes, addressing_mode mode) {
     }
 }
 
-void reset_nes(NES *nes) {
-    nes->cpu->pc = mem_read_u16(nes, RESET_VECTOR);
-}
+void reset_nes(NES *nes) { nes->cpu->pc = mem_read_u16(nes, RESET_VECTOR); }

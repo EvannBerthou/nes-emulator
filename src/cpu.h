@@ -24,7 +24,7 @@ typedef struct {
         uint8_t status;
     };
     uint16_t pc;
-    uint8_t memory[1 << 16];
+    uint8_t memory[0x800];
 } cpu;
 
 typedef enum {

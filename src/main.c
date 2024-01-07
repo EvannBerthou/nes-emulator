@@ -1,6 +1,6 @@
-#include <stdio.h>
 #include "cpu.h"
 #include "ines.h"
+#include "mappers/mapper.h"
 #include "nes.h"
 #include "opcodes.h"
 
@@ -11,7 +11,8 @@ int main() {
     cartridge cart;
     load_rom(&cart, "zelda.nes");
 
-    NES nes = {&c, &cart};
+    mapper m = get_mmc1_mapper();
+    NES nes = {&c, &cart, &m};
     reset_nes(&nes);
 
     while (1) {

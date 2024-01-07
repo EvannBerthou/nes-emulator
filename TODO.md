@@ -1,0 +1,9 @@
+- Flags dans le header
+- Mapper
+    - MMC1
+        - Lecture
+        - Ecriture
+        - Banks
+- Affichage
+    - SDL
+    - PPU
